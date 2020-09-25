@@ -1,0 +1,308 @@
+!
+{%- if vrf is defined %}
+{%- for vrf in vrf %}
+vrf instance {{ vrf.name }}
+   {%- if vrf.description is defined %}
+   description {{ vrf.description }}
+   {%- endif %}
+!
+{%- if vrf.ipv4_routing is defined and vrf.ipv4_routing == 'enabled' %}
+ip routing vrf {{ vrf.name }}
+!
+{%- endif %}
+{%- if vrf.ipv4_routing is defined and vrf.ipv4_routing == 'disabled' %}
+no ip routing vrf {{ vrf.name }}
+!
+{%- endif %}
+{%- if vrf.vni is defined %}
+router bgp {{ device.as }}
+   vrf {{ vrf.name }}
+      rd {{ device.router_id }}:{{ vrf.vni }}
+      {%- if vrf.route_target is defined %}
+      route-target import evpn {{ vrf.route_target }}:{{ vrf.route_target }}
+      route-target export evpn {{ vrf.route_target }}:{{ vrf.route_target }}
+      redistribute connected
+      {%- endif %}
+!
+{%- endif %}
+{%- if vrf.vni is defined %}
+interface Vxlan1
+   vxlan vrf {{ vrf.name }} vni {{ vrf.vni }}
+!
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+{%- if device.loopback0 is defined %}
+interface Loopback0
+   ip address {{ device.loopback0 }}/32
+!
+{%- endif %}
+{%- if device.loopback1 is defined %}
+interface Loopback1
+   ip address {{ device.loopback1 }}/32
+!
+{%- endif %}
+{%- if interface is defined %}
+{%- for interface in interface %}
+interface {{ interface.name }}
+   {%- if interface.status is defined and interface.status == 'enabled' %}
+   no shutdown
+   {%- endif %}
+   {%- if interface.status is defined and interface.status == 'disabled' %}
+   shutdown
+   {%- endif %}
+   {%- if interface.description is defined %}
+   description {{ interface.description }}
+   {%- elif interface.peer is defined and interface.peer_interface is defined %}
+   description {{ interface.peer }}:{{ interface.peer_interface }}
+   {%- endif %}
+   {%- if interface.vlan is defined %}
+   encapsulation dot1q vlan {{ interface.vlan }}
+   {%- endif %}
+   {%- if 'vEOS' not in device.type %}
+   {%- if interface.mtu is defined %}
+   mtu {{ interface.mtu }}
+   {%- endif %}
+   {%- endif %}
+   {%- if interface.speed is defined %}
+   speed forced {{ interface.speed }}
+   {%- endif %}
+   {%- if interface.interface_mode is defined and interface.interface_mode == 'bridged' %}
+   switchport
+   {%- endif %}
+   {%- if interface.interface_mode is defined and interface.interface_mode == 'routed' %}
+   no switchport
+   {%- endif %}
+   {%- if interface.switchport_mode is defined %}
+   switchport mode {{ interface.switchport_mode }}
+   {%- endif %}
+   {%- if interface.mlag is defined %}
+   mlag {{ interface.mlag }}
+   {%- endif %}
+   {%- if interface.switchport_access_vlan is defined %}
+   switchport access vlan {{ interface.switchport_access_vlan }}
+   {%- endif %}
+   {%- if interface.switchport_trunk_allowed_vlans is defined %}
+   switchport trunk allowed vlan {{ interface.switchport_trunk_allowed_vlans }}
+   {%- endif %}
+   {%- if interface.switchport_trunk_groups is defined %}
+   switchport trunk group {{ interface.switchport_trunk_groups }}
+   {%- endif %}
+   {%- if interface.switchport_trunk_native_vlan is defined %}
+   switchport trunk native vlan {{ interface.switchport_trunk_native_vlan }}
+   {%- endif %}
+   {%- if interface.vrf is defined %}
+   vrf {{ interface.vrf }}
+   {%- endif %}
+   {%- if interface.ipv4_address is defined and interface.ipv4_mask is defined %}
+   ip address {{ interface.ipv4_address }}/{{ interface.ipv4_mask }}
+   {%- endif %}
+   {%- if interface.pim is defined and interface.pim == 'enabled' %}
+   pim ipv4 sparse-mode
+   {%- endif %}
+   {%- if interface.channel_group_id is defined and interface.channel_group_mode is defined %}
+   channel-group {{ interface.channel_group_id }} mode {{ interface.channel_group_mode }}
+   {%- endif %}
+   {%- if interface.esi_id is defined %}
+   evpn ethernet-segment
+      identifier 0000:0000:0000:0000:00{{ interface.esi_id }}
+      route-target import 00:00:00:00:00:{{ interface.esi_id }}
+   lacp system-id 0000.0000.00{{ interface.esi_id }}
+   {%- endif %}
+!
+{%- endfor %}
+{%- endif %}
+{%- if device.vtep_source is defined %}
+interface Vxlan1
+   vxlan source-interface {{ device.vtep_source }}
+   {%- if device.mlag_domain_id is defined %}
+   vxlan virtual-router encapsulation mac-address mlag-system-id
+   {%- endif %}
+   vxlan udp-port 4789
+!
+{%- if '7280' in device.type %}
+hardware tcam
+   system profile vxlan-routing
+!
+{%- endif %}
+{%- endif %}
+{%- if device.vrouter_mac is defined %}
+ip virtual-router mac-address {{ device.vrouter_mac }}
+!
+{%- endif %}
+{%- if device.management_ipv4_address is defined and device.management_ipv4_mask is defined%}
+interface Management1
+   ip address {{ device.management_ipv4_address }}/{{ device.management_ipv4_mask }}
+!
+{%- endif %}
+{%- if device.mlag_domain_id is defined %}
+no spanning-tree vlan-id 4094
+!
+vlan 4094
+   trunk group MLAG
+!
+interface Vlan4094
+   {%- if 'vEOS' not in device.type %}
+   mtu 9214
+   {%- endif %}
+   no autostate
+   {%- if device.mlag_id == '0' %}
+   ip address 10.0.0.0/31
+   {%- endif %}
+   {%- if device.mlag_id == '1' %}
+   ip address 10.0.0.1/31
+   {%- endif %}
+!
+mlag configuration
+   domain-id {{ device.mlag_domain_id }}
+   local-interface Vlan4094
+   {%- if device.mlag_id == '0' %}
+   peer-address 10.0.0.1
+   {%- endif %}
+   {%- if device.mlag_id == '1'%}
+   peer-address 10.0.0.0
+   {%- endif %}
+   peer-link Port-Channel1
+!
+{%- endif %}
+{%- if vlan is defined %}
+{%- for vlan in vlan %}
+vlan {{ vlan.id }}
+   {%- if vlan.name is defined %}
+   name {{ vlan.name }}
+   {%- endif %}
+   {%- if vlan.trunk_group is defined %}
+   trunk group {{ vlan.trunk_group }}
+   {%- endif %}
+!
+{%- if vlan.vni is defined %}
+router bgp {{ device.as }}
+   !
+   vlan {{ vlan.id }}
+      rd {{ device.router_id }}:{{ vlan.vni }}
+      route-target both {{ vlan.route_target }}:{{ vlan.route_target }}
+      redistribute learned
+!
+interface Vxlan1
+   vxlan vlan {{ vlan.id }} vni {{ vlan.vni }}
+!
+{%- endif %}
+{%- if vlan.ipv4_address is defined or vlan.ipv4_virtual_router is defined or vlan.ipv4_address_virtual is defined%}
+interface Vlan{{ vlan.id }}
+   {%- if vlan.vrf is defined %}
+   vrf {{ vlan.vrf }}
+   {%- endif %}
+   {%- if vlan.ipv4_address is defined %}
+   ip address {{ vlan.ipv4_address }}/{{ vlan.ipv4_mask }}
+   {%- endif %}
+   {%- if vlan.ipv4_virtual_router is defined %}
+   ip virtual-router address {{ vlan.ipv4_virtual_router }}
+   {%- endif %}
+   {%- if vlan.ipv4_address_virtual is defined %}
+   ip address virtual {{ vlan.ipv4_address_virtual }}/{{ vlan.ipv4_mask }}
+   {%- endif %}
+!
+{%- endif %}
+{%- endfor %}
+{%- endif %}
+router general
+   router-id ipv4 {{ device.router_id }}
+!
+{%- if device.role is defined and device.role == 'spine' %}
+peer-filter LEAF-AS-RANGE
+   10 match as-range 65101-65299 result accept
+!
+router bgp {{ device.as }}
+   {%- if 'vEOS' not in device.type %}
+   update wait-install
+   {%- endif %}
+   no bgp default ipv4-unicast
+   maximum-paths 8
+   bgp listen range 192.168.50.0/24 peer-group IPV4-UNDERLAY peer-filter LEAF-AS-RANGE
+   bgp listen range 1.1.1.0/24 peer-group EVPN-OVERLAY peer-filter LEAF-AS-RANGE
+   neighbor IPV4-UNDERLAY peer group
+   neighbor IPV4-UNDERLAY password IPV4-UNDERLAY-PASSWORD
+   neighbor IPV4-UNDERLAY send-community
+   neighbor IPV4-UNDERLAY maximum-routes 12000 
+   neighbor EVPN-OVERLAY peer group
+   neighbor EVPN-OVERLAY next-hop-unchanged
+   neighbor EVPN-OVERLAY update-source Loopback0
+   {%- if 'vEOS' not in device.type %}
+   neighbor EVPN-OVERLAY bfd
+   {%- endif %}
+   neighbor EVPN-OVERLAY ebgp-multihop 3
+   neighbor EVPN-OVERLAY password EVPN-OVERLAY-PASSWORD
+   neighbor EVPN-OVERLAY send-community
+   neighbor EVPN-OVERLAY maximum-routes 0
+   !
+   address-family ipv4
+      neighbor IPV4-UNDERLAY activate
+      {%- if device.loopback0 is defined %}
+      network {{ device.loopback0 }}/32
+      {%- endif %}
+      {%- if device.loopback1 is defined %}
+      network {{ device.loopback1 }}/32
+      {%- endif %}
+   !
+   address-family evpn
+      neighbor EVPN-OVERLAY activate
+!
+{%- endif %}
+{%- if device.role is defined and device.role != 'spine' %}
+router bgp {{ device.as }}
+   {%- if 'vEOS' not in device.type %}
+   update wait-install
+   {%- endif %}
+   no bgp default ipv4-unicast
+   maximum-paths 8
+   neighbor IPV4-UNDERLAY peer group
+   neighbor IPV4-UNDERLAY password IPV4-UNDERLAY-PASSWORD
+   neighbor IPV4-UNDERLAY send-community
+   neighbor IPV4-UNDERLAY maximum-routes 12000
+   neighbor EVPN-OVERLAY peer group
+   neighbor EVPN-OVERLAY update-source Loopback0
+   {%- if 'vEOS' not in device.type %}
+   neighbor EVPN-OVERLAY bfd
+   {%- endif %}
+   neighbor EVPN-OVERLAY ebgp-multihop 3
+   neighbor EVPN-OVERLAY password EVPN-OVERLAY-PASSWORD
+   neighbor EVPN-OVERLAY send-community
+   neighbor EVPN-OVERLAY maximum-routes 0
+   {%- if bgp is defined %}
+   {%- for neighbor in bgp %}
+   neighbor {{ neighbor.neighbor }} peer group {{ neighbor.peer_group }}
+   neighbor {{ neighbor.neighbor }} remote-as {{ neighbor.as }}
+   {%- endfor %}
+   {%- endif %}
+   {%- if device.mlag_domain_id is defined %}
+   neighbor IPV4-UNDERLAY-MLAG peer group
+   neighbor IPV4-UNDERLAY-MLAG next-hop-self
+   neighbor IPV4-UNDERLAY-MLAG password IPV4-UNDERLAY-PASSWORD
+   neighbor IPV4-UNDERLAY-MLAG send-community
+   neighbor IPV4-UNDERLAY-MLAG maximum-routes 12000
+   {%- if device.mlag_id == '0' %}
+   neighbor 10.0.0.1 peer group IPV4-UNDERLAY-MLAG
+   neighbor 10.0.0.1 remote-as {{ device.as }}
+   {%- endif %}
+   {%- if device.mlag_id == '1' %}
+   neighbor 10.0.0.0 peer group IPV4-UNDERLAY-MLAG
+   neighbor 10.0.0.0 remote-as {{ device.as }}
+   {%- endif %}
+   !
+   address-family ipv4
+      neighbor IPV4-UNDERLAY-MLAG activate
+   {%- endif %}
+   !
+   address-family ipv4
+      neighbor IPV4-UNDERLAY activate
+      {%- if device.loopback0 is defined %}
+      network {{ device.loopback0 }}/32
+      {%- endif %}
+      {%- if device.loopback1 is defined %}
+      network {{ device.loopback1 }}/32
+      {%- endif %}
+   !
+   address-family evpn
+      neighbor EVPN-OVERLAY activate
+!
+{%- endif %}
