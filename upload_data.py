@@ -1,13 +1,28 @@
 from cvprac.cvp_client import CvpClient
 import json
 import urllib3
+import argparse
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+parser = argparse.ArgumentParser(
+    description='Upload Configlets to CVP'
+    )
+parser.add_argument(
+    '-i',
+    help='CVP IP address',
+    dest='ip',
+    required=True
+    )
+
+args = parser.parse_args()
+
+ip = args.ip
 
 clnt = CvpClient()
 
 clnt.connect(
-    nodes=['34.90.178.133'],
+    nodes=[ip],
     username='arista', password='arista', is_cvaas=False
 )
 

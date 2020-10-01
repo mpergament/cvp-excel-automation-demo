@@ -52,7 +52,7 @@ Saved file: data.json
 3. Upload required Configlet Builder, data.json and Jinja2 template to CVP
 
 ```
-root@automation-host:~# python3 upload_data.py
+root@automation-host:~# python3 upload_data.py -i "CVP IP"
 ```
 
 4. Run the Configlet Builder to generate device configlets (generate_configlets)
