@@ -137,12 +137,12 @@ database = json.loads(get_configlet(data_file)['config'])
 for device in database:
     to_container_name = database[device]['device']['container']
     for item in inventory:
-        if device == item['hostname']:
+        if database[device]['device']['system_mac'] == item['systemMacAddress']:
             move_device(item, to_container_name)
 
 for device in database:
     for item in inventory:
-        if device == item['hostname']:
+        if database[device]['device']['system_mac'] == item['systemMacAddress']:
             configlets = get_configlets_by_device_id(item['systemMacAddress'])
             temp_configlets = get_temp_configlets_by_device_id(item['systemMacAddress'])
             apply_configlets_to_device(item, configlets, temp_configlets, device)
