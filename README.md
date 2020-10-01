@@ -49,9 +49,14 @@ root@automation-host:~# ./generate_json.py -f build_data.xlsx
 Saved file: data.json
 ```
 
-3. Run the Configlet Builder to generate device configlets (generate_configlets)
-4. Run the Configlet Builder to create containers (add_containers)
-5. Assign static configlets and image bundles to containers
+3. Upload required Configlet Builder, data.json and Jinja2 template to CVP
+
+```
+root@automation-host:~# python3 upload_data.py
+```
+
+4. Run the Configlet Builder to generate device configlets (generate_configlets)
+5. Run the Configlet Builder to create containers (add_containers)
 6. Run the Configlet Builder to deploy device configlets (deploy_configlets)
 7. Approve and execute change control
 
