@@ -24,7 +24,7 @@ taskInfo = clnt.api.add_configlet (
     config=data
 )
 
-builder_list = ["generate_configlets.py", "generate_json.py"]
+builder_list = ["generate_configlets.py"]
 
 for builder in builder_list:
     data=open(builder, 'r').read()
